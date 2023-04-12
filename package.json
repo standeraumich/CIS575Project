@@ -19,7 +19,8 @@
     "react-native-sensor-fusion": "^0.0.4",
     "react-native-svg": "13.4.0",
     "expo-file-system": "~15.2.2",
-    "react-native-view-shot": "3.5.0"
+    "react-native-view-shot": "3.5.0",
+    "expo-media-library": "~15.2.3"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

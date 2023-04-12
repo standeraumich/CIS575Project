@@ -12,8 +12,8 @@ import {
     Button,
 } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
-import { Context } from "expo-2d-context";
-import * as FileSystem from "expo-file-system";
+import * as MediaLibrary from "expo-media-library";
+import { captureRef } from "react-native-view-shot";
 
 const Indicator = ({ isPressed, data }) => {
     const { ahrs } = useSensorFusion();
@@ -35,7 +35,7 @@ const Indicator = ({ isPressed, data }) => {
     // </Text>
 };
 
-const GesturePath = ({ path, color, ref }) => {
+const GesturePath = ({ path, color }) => {
     const { width, height } = Dimensions.get("window");
     const limit = width * 0.9;
     const xvals = path.map((p) => p.x);
@@ -59,7 +59,6 @@ const GesturePath = ({ path, color, ref }) => {
 
     return (
         <Svg
-            ref={ref}
             height={limit}
             width={limit}
             style={{
@@ -67,8 +66,8 @@ const GesturePath = ({ path, color, ref }) => {
                 borderRadius: 10,
                 borderColor: "black",
                 borderWidth: 1,
-                width: 100,
-                height: 100,
+                width: { limit },
+                height: { limit },
             }}
         >
             <Polyline
@@ -82,6 +81,11 @@ const GesturePath = ({ path, color, ref }) => {
 };
 
 export default function App() {
+    const [status, requestPermission] = MediaLibrary.usePermissions();
+
+    if (status === null) {
+        requestPermission();
+    }
     const [isPressed, setIsPressed] = useState(false);
     const sensorData = useRef([]);
     const svgRef = useRef();
@@ -98,35 +102,36 @@ export default function App() {
         setIsPressed(false);
     };
 
-    const savePress = async () => {
-        const canvas = new Context(new globalThis.HTMLCanvasElement(100, 100));
-        const svgData = await svgRef.current.toDataURL();
-        const img = new globalThis.Image();
-        img.onload = () => {
-            canvas.drawSvg(img, 0, 0, 100, 100);
-            canvas.canvas.toBlob(async (blob) => {
-                const filePath =
-                    FileSystem.documentDirectory + "my-svg-file.png";
-                await FileSystem.writeAsStringAsync(filePath, blob, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
-                console.log("SVG file saved to " + filePath);
+    const onSaveImageAsync = async () => {
+        const { width, height } = Dimensions.get("window");
+        try {
+            const localUri = await captureRef(svgRef, {
+                height: width,
+                width: width,
+                quality: 1,
             });
-        };
-        img.src = svgData;
-    };
 
+            await MediaLibrary.saveToLibraryAsync(localUri);
+            if (localUri) {
+                alert("Saved!");
+            }
+        } catch (e) {
+            console.log(e);
+        }
+    };
     return (
         <View style={styles.container}>
             <StatusBar style="auto" />
-            <View style={styles.drawingBox}>
+            <View
+                ref={svgRef}
+                style={styles.drawingBox}
+            >
                 <GesturePath
                     path={sensorData.current}
                     color="#000000"
-                    ref={svgRef}
                 />
             </View>
-            <View style={styles.sensorText}>
+            <View>
                 <SensorFusionProvider>
                     <Indicator
                         isPressed={isPressed}
@@ -150,15 +155,23 @@ export default function App() {
                         <Text>Draw</Text>
                     </View>
                 </TouchableWithoutFeedback>
-                <View>
-                    <Button
-                        title="Delete"
-                        onPress={deleteData}
-                    ></Button>
-                    <Button
-                        title="Save"
-                        onPress={savePress}
-                    ></Button>
+                <View style={styles.buttonGroup}>
+                    <View style={styles.button}>
+                        <Button
+                            color="#ff7300"
+                            title="Delete"
+                            onPress={deleteData}
+                            style={styles.button}
+                        />
+                    </View>
+                    <View style={styles.button}>
+                        <Button
+                            color="#ff7300"
+                            title="Save"
+                            onPress={onSaveImageAsync}
+                            style={styles.button}
+                        />
+                    </View>
                 </View>
             </View>
         </View>
@@ -183,5 +196,15 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "flex-start",
         margin: 50,
+    },
+    buttonGroup: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 20,
+    },
+    button: {
+        margin: 60,
+        padding: 10,
     },
 });
