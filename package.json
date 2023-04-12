@@ -10,13 +10,16 @@
   },
   "dependencies": {
     "expo": "~48.0.10",
+    "expo-2d-context": "^0.0.3",
     "expo-sensors": "~12.1.1",
     "expo-status-bar": "~1.4.4",
     "react": "18.2.0",
     "react-native": "0.71.6",
     "react-native-chart-kit": "^6.12.0",
     "react-native-sensor-fusion": "^0.0.4",
-    "react-native-svg": "13.4.0"
+    "react-native-svg": "13.4.0",
+    "expo-file-system": "~15.2.2",
+    "react-native-view-shot": "3.5.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

@@ -1,9 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { StatusBar } from "expo-status-bar";
 import SensorFusionProvider, {
     useSensorFusion,
-    useCompass,
-    toDegrees,
 } from "react-native-sensor-fusion";
 import {
     StyleSheet,
@@ -11,51 +9,33 @@ import {
     View,
     TouchableWithoutFeedback,
     Dimensions,
+    Button,
 } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
+import { Context } from "expo-2d-context";
+import * as FileSystem from "expo-file-system";
 
-const sensorData = [];
-// const Indicator = (props) => {
-//     const { isPressed } = props;
-//     const { ahrs } = useSensorFusion();
-//     const { x, y, z, w } = ahrs.toVector();
-//     const newData = { x: z, y: x };
-//     if (isPressed === true) {
-//         sensorData.push(newData);
-//         console.log(sensorData);
-//     }
-//     return (
-//         <Text>
-//             x: {x}
-//             {"\n"}
-//             y: {y}
-//             {"\n"}
-//             z: {z}
-//             {"\n"}
-//         </Text>
-//     );
-// };
-const Indicator = (props) => {
-    const { isPressed } = props;
+const Indicator = ({ isPressed, data }) => {
     const { ahrs } = useSensorFusion();
     const { heading, pitch, roll } = ahrs.getEulerAngles();
-    const compass = useCompass();
-    const newData = { x: pitch, y: roll };
+    //roll goes between -3.25 to 3.25
+    //pitch goest between -1.75 to 1.75
+    intPitch = pitch.toFixed(3);
+    intRoll = roll.toFixed(3);
+    const newData = { x: intPitch, y: intRoll };
     if (isPressed === true) {
-        sensorData.push(newData);
-        console.log(sensorData);
+        data.current = [...data.current, newData];
     }
-    return (
-        <Text>
-            Heading: {toDegrees(heading)}°{"\n"}
-            Pitch: {pitch}°{"\n"}
-            Roll: {roll}°{"\n"}
-            Compass: {toDegrees(compass)}°{"\n"}
-        </Text>
-    );
+
+    // <Text>
+    // Heading: {toDegrees(heading)}°{"\n"}
+    // Pitch: {pitch}°{"\n"}
+    // Roll: {roll}°{"\n"}
+    // Compass: {toDegrees(compass)}°{"\n"}
+    // </Text>
 };
 
-const GesturePath = ({ path, color }) => {
+const GesturePath = ({ path, color, ref }) => {
     const { width, height } = Dimensions.get("window");
     const limit = width * 0.9;
     const xvals = path.map((p) => p.x);
@@ -69,23 +49,32 @@ const GesturePath = ({ path, color }) => {
     const points = path
         .map(
             (p) =>
-                `${((p.x - xmin) / xrange) * limit},${
-                    ((p.y - ymin) / yrange) * limit
-                }`
+                `${(((p.x - xmin) / xrange) * limit).toFixed(3)},${(
+                    ((p.y - ymin) / yrange) *
+                    limit
+                ).toFixed(3)}`
         )
         .join(" ");
+    console.log(points);
 
     return (
         <Svg
+            ref={ref}
             height={limit}
             width={limit}
-            // viewBox={`${limit / 2} ${limit / 2} ${limit} ${limit}`}
-            style={{ backgroundColor: "blue" }}
+            style={{
+                backgroundColor: "white",
+                borderRadius: 10,
+                borderColor: "black",
+                borderWidth: 1,
+                width: 100,
+                height: 100,
+            }}
         >
             <Polyline
                 points={points}
                 fill="none"
-                stroke="red"
+                stroke={color}
                 strokeWidth="2"
             />
         </Svg>
@@ -94,22 +83,37 @@ const GesturePath = ({ path, color }) => {
 
 export default function App() {
     const [isPressed, setIsPressed] = useState(false);
-    const [data, setData] = useState({
-        labels: ["label"],
-        datasets: [
-            {
-                data: [{ x: 0, y: 0 }],
-            },
-        ],
-    });
+    const sensorData = useRef([]);
+    const svgRef = useRef();
+
+    const deleteData = () => {
+        sensorData.current = [];
+    };
 
     const handlePressIn = () => {
         setIsPressed(true);
-        setData(sensorData);
     };
 
     const handlePressOut = () => {
         setIsPressed(false);
+    };
+
+    const savePress = async () => {
+        const canvas = new Context(new globalThis.HTMLCanvasElement(100, 100));
+        const svgData = await svgRef.current.toDataURL();
+        const img = new globalThis.Image();
+        img.onload = () => {
+            canvas.drawSvg(img, 0, 0, 100, 100);
+            canvas.canvas.toBlob(async (blob) => {
+                const filePath =
+                    FileSystem.documentDirectory + "my-svg-file.png";
+                await FileSystem.writeAsStringAsync(filePath, blob, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+                console.log("SVG file saved to " + filePath);
+            });
+        };
+        img.src = svgData;
     };
 
     return (
@@ -117,13 +121,17 @@ export default function App() {
             <StatusBar style="auto" />
             <View style={styles.drawingBox}>
                 <GesturePath
-                    path={sensorData}
-                    color="green"
+                    path={sensorData.current}
+                    color="#000000"
+                    ref={svgRef}
                 />
             </View>
             <View style={styles.sensorText}>
                 <SensorFusionProvider>
-                    <Indicator isPressed={isPressed} />
+                    <Indicator
+                        isPressed={isPressed}
+                        data={sensorData}
+                    />
                 </SensorFusionProvider>
             </View>
             <View style={styles.sensorText}>
@@ -133,13 +141,25 @@ export default function App() {
                 >
                     <View
                         style={{
-                            backgroundColor: isPressed ? "blue" : "red",
-                            padding: 50,
+                            backgroundColor: isPressed ? "#19229e" : "#5cc8e9",
+                            padding: 40,
+                            borderRadius: 10,
+                            margin: 10,
                         }}
                     >
-                        {/* Your button contents */}
+                        <Text>Draw</Text>
                     </View>
                 </TouchableWithoutFeedback>
+                <View>
+                    <Button
+                        title="Delete"
+                        onPress={deleteData}
+                    ></Button>
+                    <Button
+                        title="Save"
+                        onPress={savePress}
+                    ></Button>
+                </View>
             </View>
         </View>
     );
@@ -162,5 +182,6 @@ const styles = StyleSheet.create({
         backgroundColor: "red",
         alignItems: "center",
         justifyContent: "flex-start",
+        margin: 50,
     },
 });
