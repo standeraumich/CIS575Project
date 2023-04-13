@@ -26,13 +26,6 @@ const Indicator = ({ isPressed, data }) => {
     if (isPressed === true) {
         data.current = [...data.current, newData];
     }
-
-    // <Text>
-    // Heading: {toDegrees(heading)}°{"\n"}
-    // Pitch: {pitch}°{"\n"}
-    // Roll: {roll}°{"\n"}
-    // Compass: {toDegrees(compass)}°{"\n"}
-    // </Text>
 };
 
 const GesturePath = ({ path, color }) => {
